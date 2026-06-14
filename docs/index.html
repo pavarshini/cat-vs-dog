@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cats vs Dogs — The Eternal Showdown</title>
+  <meta name="description" content="A playful, drag-to-compare showdown between cats and dogs, built with HTML, CSS and JavaScript." />
+
+  <!-- Google Fonts: Fredoka for headings, Inter for body text -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ====================================================
+       DESIGN TOKENS
+       ==================================================== */
+    :root {
+      --cat-color: #332C66;   /* deep indigo */
+      --cat-light: #C9C2F0;   /* soft lavender text on cat panel */
+      --dog-color: #F2A33D;   /* warm marigold */
+      --dog-light: #6B3A1E;   /* deep rust text on dog panel */
+      --bg-neutral: #F3F1F7;  /* page background */
+      --ink: #1C1B2E;         /* main text color */
+      --paper: #FFFFFF;       /* card background */
+      --track: #E4E1ED;       /* empty bar background */
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      color: var(--ink);
+      background: var(--bg-neutral);
+      line-height: 1.6;
+    }
+
+    h1, h2, h3, .display { font-family: 'Fredoka', sans-serif; }
+
+    /* ====================================================
+       HERO / SPLIT-SCREEN SHOWDOWN
+       ==================================================== */
+    .hero {
+      position: relative;
+      height: 100vh;
+      min-height: 480px;
+      overflow: hidden;
+    }
+
+    .panel {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 2rem;
+    }
+
+    .panel-cat {
+      background: var(--cat-color);
+      color: var(--cat-light);
+      z-index: 1;
+    }
+
+    .panel-dog {
+      background: var(--dog-color);
+      color: var(--dog-light);
+      z-index: 2;
+      /* Starts showing only the right half; JS updates this on drag */
+      clip-path: inset(0 0 0 50%);
+    }
+
+    .panel-icon {
+      width: 130px;
+      height: 130px;
+      margin-bottom: 1rem;
+    }
+
+    .panel-title {
+      font-size: 3rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+    }
+
+    .panel-sub {
+      font-size: 1.05rem;
+      max-width: 320px;
+      margin-top: 0.6rem;
+      opacity: 0.9;
+    }
+
+    /* Draggable divider */
+    .divider {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      width: 48px;
+      height: 100%;
+      transform: translateX(-24px);
+      z-index: 3;
+      cursor: ew-resize;
+      display: flex;
+      justify-content: center;
+      touch-action: none;
+    }
+
+    .divider::before {
+      content: "";
+      width: 4px;
+      height: 100%;
+      background: #fff;
+      opacity: 0.85;
+    }
+
+    .divider::after {
+      content: "↔";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: #fff;
+      color: var(--ink);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .divider:focus-visible::after {
+      outline: 3px solid var(--cat-light);
+      outline-offset: 2px;
+    }
+
+    /* Floating "VS" badge */
+    .vs-badge {
+      position: absolute;
+      top: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 4;
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: var(--ink);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Fredoka', sans-serif;
+      font-weight: 700;
+      font-size: 1.1rem;
+      letter-spacing: 0.05em;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    }
+
+    /* ====================================================
+       STATS SECTION — "Tale of the Tape"
+       ==================================================== */
+    .stats {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 4rem 1.5rem 2rem;
+    }
+
+    .stats h2 {
+      font-size: 2rem;
+      margin-bottom: 0.4rem;
+    }
+
+    .stats-intro {
+      opacity: 0.75;
+      margin-bottom: 2.5rem;
+    }
+
+    .stat-row { margin-bottom: 1.6rem; }
+
+    .stat-name {
+      font-size: 1.05rem;
+      font-weight: 600;
+      margin-bottom: 0.6rem;
+    }
+
+    .stat-line {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.4rem;
+    }
+
+    .stat-tag {
+      flex: 0 0 78px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .stat-tag.cat { color: var(--cat-color); }
+    .stat-tag.dog { color: var(--dog-light); }
+
+    .stat-track {
+      flex: 1;
+      height: 12px;
+      background: var(--track);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .stat-fill {
+      height: 100%;
+      border-radius: 6px;
+    }
+
+    .stat-fill.cat { background: var(--cat-color); }
+    .stat-fill.dog { background: var(--dog-color); }
+
+    /* ====================================================
+       FACTS SECTION
+       ==================================================== */
+    .facts {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 1rem 1.5rem 5rem;
+      text-align: center;
+    }
+
+    .facts h2 { font-size: 2rem; margin-bottom: 2rem; }
+
+    .facts-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      text-align: left;
+      margin-bottom: 2rem;
+    }
+
+    .fact-card {
+      background: var(--paper);
+      border-radius: 16px;
+      padding: 1.5rem;
+      border-top: 6px solid;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+    }
+
+    .fact-card.cat { border-color: var(--cat-color); }
+    .fact-card.dog { border-color: var(--dog-color); }
+
+    .fact-card h3 { margin-bottom: 0.6rem; font-size: 1.2rem; }
+
+    .next-fact {
+      background: var(--ink);
+      color: #fff;
+      border: none;
+      padding: 0.85rem 1.8rem;
+      border-radius: 999px;
+      font-family: 'Fredoka', sans-serif;
+      font-weight: 600;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.15s ease, transform 0.15s ease;
+    }
+
+    .next-fact:hover { background: var(--cat-color); transform: translateY(-2px); }
+    .next-fact:focus-visible { outline: 3px solid var(--dog-color); outline-offset: 2px; }
+
+    /* ====================================================
+       FOOTER
+       ==================================================== */
+    footer {
+      text-align: center;
+      padding: 2rem 1.5rem;
+      font-size: 0.9rem;
+      opacity: 0.65;
+    }
+
+    /* ====================================================
+       RESPONSIVE
+       ==================================================== */
+    @media (max-width: 700px) {
+      .panel-icon { width: 90px; height: 90px; }
+      .panel-title { font-size: 2.1rem; }
+      .panel-sub { font-size: 0.95rem; }
+      .facts-grid { grid-template-columns: 1fr; }
+      .vs-badge { width: 52px; height: 52px; font-size: 0.95rem; top: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ====================================================
+       HERO: drag the divider to reveal more cat or more dog
+       ==================================================== -->
+  <header class="hero" id="hero">
+    <div class="panel panel-cat">
+      <div class="panel-icon" aria-hidden="true">
+        <svg viewBox="0 0 200 200" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="100" cy="112" r="58" />
+          <path d="M52 70 L36 24 L82 56 Z" />
+          <path d="M148 70 L164 24 L118 56 Z" />
+          <ellipse cx="80" cy="102" rx="6" ry="10" fill="currentColor" stroke="none" />
+          <ellipse cx="120" cy="102" rx="6" ry="10" fill="currentColor" stroke="none" />
+          <path d="M94 122 L106 122 L100 130 Z" fill="currentColor" stroke="none" />
+          <path d="M100 130 Q88 142 76 134" />
+          <path d="M100 130 Q112 142 124 134" />
+          <line x1="38" y1="116" x2="76" y2="120" />
+          <line x1="38" y1="132" x2="76" y2="128" />
+          <line x1="162" y1="116" x2="124" y2="120" />
+          <line x1="162" y1="132" x2="124" y2="128" />
+        </svg>
+      </div>
+      <h1 class="panel-title">CATS</h1>
+      <p class="panel-sub">Independent, mysterious, and always landing on their feet.</p>
+    </div>
+
+    <div class="panel panel-dog" id="dogPanel">
+      <div class="panel-icon" aria-hidden="true">
+        <svg viewBox="0 0 200 200" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="100" cy="108" r="54" />
+          <path d="M54 82 C28 92 24 142 50 156 C66 162 70 120 64 96 Z" fill="currentColor" stroke="none" opacity="0.85" />
+          <path d="M146 82 C172 92 176 142 150 156 C134 162 130 120 136 96 Z" fill="currentColor" stroke="none" opacity="0.85" />
+          <ellipse cx="82" cy="100" rx="6" ry="8" fill="currentColor" stroke="none" />
+          <ellipse cx="118" cy="100" rx="6" ry="8" fill="currentColor" stroke="none" />
+          <ellipse cx="100" cy="120" rx="10" ry="7" fill="currentColor" stroke="none" />
+          <path d="M100 127 L100 136" />
+          <path d="M100 136 Q86 146 78 140" />
+          <path d="M100 136 Q114 146 122 140" />
+          <path d="M98 139 Q98 158 109 156 Q113 145 102 139 Z" fill="#E8607A" stroke="none" />
+        </svg>
+      </div>
+      <h1 class="panel-title">DOGS</h1>
+      <p class="panel-sub">Loyal, energetic, and thrilled to see you every single time.</p>
+    </div>
+
+    <div class="vs-badge" aria-hidden="true">VS</div>
+
+    <div
+      class="divider"
+      id="divider"
+      role="slider"
+      tabindex="0"
+      aria-label="Drag to compare cats and dogs"
+      aria-valuemin="10"
+      aria-valuemax="90"
+      aria-valuenow="50"
+    ></div>
+  </header>
+
+  <main>
+    <!-- ====================================================
+         STATS: a totally unscientific comparison
+         ==================================================== -->
+    <section class="stats">
+      <h2>Tale of the Tape</h2>
+      <p class="stats-intro">A completely unscientific, highly opinionated breakdown.</p>
+
+      <div class="stat-row">
+        <p class="stat-name">Independence</p>
+        <div class="stat-line">
+          <span class="stat-tag cat">Cat 9/10</span>
+          <div class="stat-track"><div class="stat-fill cat" style="width: 90%;"></div></div>
+        </div>
+        <div class="stat-line">
+          <span class="stat-tag dog">Dog 3/10</span>
+          <div class="stat-track"><div class="stat-fill dog" style="width: 30%;"></div></div>
+        </div>
+      </div>
+
+      <div class="stat-row">
+        <p class="stat-name">Cuddle Power</p>
+        <div class="stat-line">
+          <span class="stat-tag cat">Cat 5/10</span>
+          <div class="stat-track"><div class="stat-fill cat" style="width: 50%;"></div></div>
+        </div>
+        <div class="stat-line">
+          <span class="stat-tag dog">Dog 9/10</span>
+          <div class="stat-track"><div class="stat-fill dog" style="width: 90%;"></div></div>
+        </div>
+      </div>
+
+      <div class="stat-row">
+        <p class="stat-name">Trainability</p>
+        <div class="stat-line">
+          <span class="stat-tag cat">Cat 3/10</span>
+          <div class="stat-track"><div class="stat-fill cat" style="width: 30%;"></div></div>
+        </div>
+        <div class="stat-line">
+          <span class="stat-tag dog">Dog 8/10</span>
+          <div class="stat-track"><div class="stat-fill dog" style="width: 80%;"></div></div>
+        </div>
+      </div>
+
+      <div class="stat-row">
+        <p class="stat-name">Stealth Mode</p>
+        <div class="stat-line">
+          <span class="stat-tag cat">Cat 10/10</span>
+          <div class="stat-track"><div class="stat-fill cat" style="width: 100%;"></div></div>
+        </div>
+        <div class="stat-line">
+          <span class="stat-tag dog">Dog 2/10</span>
+          <div class="stat-track"><div class="stat-fill dog" style="width: 20%;"></div></div>
+        </div>
+      </div>
+
+      <div class="stat-row">
+        <p class="stat-name">Morning Wake-Up Energy</p>
+        <div class="stat-line">
+          <span class="stat-tag cat">Cat 4/10</span>
+          <div class="stat-track"><div class="stat-fill cat" style="width: 40%;"></div></div>
+        </div>
+        <div class="stat-line">
+          <span class="stat-tag dog">Dog 9/10</span>
+          <div class="stat-track"><div class="stat-fill dog" style="width: 90%;"></div></div>
+        </div>
+      </div>
+
+      <div class="stat-row">
+        <p class="stat-name">Box-Sitting Skills</p>
+        <div class="stat-line">
+          <span class="stat-tag cat">Cat 10/10</span>
+          <div class="stat-track"><div class="stat-fill cat" style="width: 100%;"></div></div>
+        </div>
+        <div class="stat-line">
+          <span class="stat-tag dog">Dog 1/10</span>
+          <div class="stat-track"><div class="stat-fill dog" style="width: 10%;"></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================================================
+         FACTS: click the button to cycle through facts
+         ==================================================== -->
+    <section class="facts">
+      <h2>Fact Files</h2>
+
+      <div class="facts-grid">
+        <div class="fact-card cat">
+          <h3>🐱 Cat Corner</h3>
+          <p id="catFact">Loading fact…</p>
+        </div>
+        <div class="fact-card dog">
+          <h3>🐶 Dog Den</h3>
+          <p id="dogFact">Loading fact…</p>
+        </div>
+      </div>
+
+      <button class="next-fact" id="nextFactBtn">Show me new facts</button>
+    </section>
+  </main>
+
+  <footer>
+    Built with HTML, CSS &amp; JavaScript · Drag the divider above to settle the debate.
+  </footer>
+
+  <script>
+    /* ====================================================
+       1. DRAGGABLE DIVIDER
+       Moves the dog panel's clip-path so it reveals more
+       (or less) of the dog side as the user drags.
+       ==================================================== */
+    const hero = document.getElementById('hero');
+    const divider = document.getElementById('divider');
+    const dogPanel = document.getElementById('dogPanel');
+
+    let isDragging = false;
+
+    function setSplit(percent) {
+      // Keep the split between 10% and 90% so neither side disappears
+      percent = Math.min(90, Math.max(10, percent));
+      dogPanel.style.clipPath = `inset(0 0 0 ${percent}%)`;
+      divider.style.left = `${percent}%`;
+      divider.setAttribute('aria-valuenow', Math.round(percent));
+    }
+
+    function percentFromClientX(clientX) {
+      const rect = hero.getBoundingClientRect();
+      return ((clientX - rect.left) / rect.width) * 100;
+    }
+
+    // Mouse events
+    divider.addEventListener('mousedown', () => { isDragging = true; });
+    window.addEventListener('mouseup', () => { isDragging = false; });
+    window.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      setSplit(percentFromClientX(e.clientX));
+    });
+
+    // Touch events (mobile/tablet)
+    divider.addEventListener('touchstart', () => { isDragging = true; });
+    window.addEventListener('touchend', () => { isDragging = false; });
+    window.addEventListener('touchmove', (e) => {
+      if (!isDragging) return;
+      setSplit(percentFromClientX(e.touches[0].clientX));
+    });
+
+    // Keyboard support (arrow keys, when the divider is focused)
+    divider.addEventListener('keydown', (e) => {
+      const current = parseFloat(divider.style.left) || 50;
+      if (e.key === 'ArrowLeft') setSplit(current - 5);
+      if (e.key === 'ArrowRight') setSplit(current + 5);
+    });
+
+    /* ====================================================
+       2. FACT CYCLER
+       Clicking the button shows the next pair of facts.
+       ==================================================== */
+    const catFacts = [
+      "Cats sleep for 12 to 16 hours a day — more than almost any other mammal.",
+      "A group of cats is called a 'clowder', and a litter of kittens is a 'kindle'.",
+      "Each cat ear has over two dozen muscles, letting it rotate nearly 180 degrees.",
+      "Domestic cats are one of the few mammals that can't taste sweetness at all."
+    ];
+
+    const dogFacts = [
+      "Dogs have been by our side for at least 15,000 years — humanity's oldest companion.",
+      "A dog's sense of smell is estimated to be tens of thousands of times sharper than ours.",
+      "Every dog's nose print is unique, just like a human fingerprint.",
+      "Puppies are born deaf and blind, relying on touch and smell for their first few weeks."
+    ];
+
+    const catFactEl = document.getElementById('catFact');
+    const dogFactEl = document.getElementById('dogFact');
+    let factIndex = 0;
+
+    function showFacts(index) {
+      catFactEl.textContent = catFacts[index % catFacts.length];
+      dogFactEl.textContent = dogFacts[index % dogFacts.length];
+    }
+
+    showFacts(factIndex);
+
+    document.getElementById('nextFactBtn').addEventListener('click', () => {
+      factIndex++;
+      showFacts(factIndex);
+    });
+  </script>
+</body>
+</html>
